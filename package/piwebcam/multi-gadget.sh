@@ -64,17 +64,19 @@ EOF
 config_usb_webcam () {
   mkdir -p functions/uvc.usb0/control/header/h
 
-  config_frame mjpeg m  640  360
-  config_frame mjpeg m  640  480
-  config_frame mjpeg m  800  600
-  config_frame mjpeg m 1024  768
-  config_frame mjpeg m 1280  720
-  config_frame mjpeg m 1280  960
-  config_frame mjpeg m 1440 1080
-  config_frame mjpeg m 1536  864
-  config_frame mjpeg m 1600  900
-  config_frame mjpeg m 1600 1200
-  config_frame mjpeg m 1920 1080
+  # config_frame mjpeg m  640  360
+  # config_frame mjpeg m  640  480
+  # config_frame mjpeg m  800  600
+  # config_frame mjpeg m 1024  768
+  # config_frame mjpeg m 1280  720
+  # config_frame mjpeg m 1280  960
+  # config_frame mjpeg m 1440 1080
+  # config_frame mjpeg m 1536  864
+  # config_frame mjpeg m 1600  900
+  config_frame mjpeg m 1640  922
+  config_frame mjpeg m 1640  1232
+  # config_frame mjpeg m 1600 1200
+  # config_frame mjpeg m 1920 1080
 
   mkdir -p functions/uvc.usb0/streaming/header/h
   ln -s functions/uvc.usb0/streaming/mjpeg/m  functions/uvc.usb0/streaming/header/h

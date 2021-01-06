@@ -3,3 +3,4 @@ output
 /camera.txt
 configs/*_defconfig
 board/linux.config
+.DS_Store

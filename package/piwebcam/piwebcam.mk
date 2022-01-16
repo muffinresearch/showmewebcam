@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-PIWEBCAM_VERSION = 28605a4f79fe6bb9de9a3e2babfa0ce22c668e5f
+PIWEBCAM_VERSION = e9a733fe5c4a7fcb48e963e8d994bc33d24d814e
 PIWEBCAM_SITE = git://github.com/peterbay/uvc-gadget.git
 PIWEBCAM_LICENSE = GPL-2.0+
 PIWEBCAM_LICENSE_FILES = LICENSE
@@ -21,6 +21,7 @@ define PIWEBCAM_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/uvc-gadget $(TARGET_DIR)$(PIWEBCAM_DEST_DIR)
 	$(INSTALL) -D -m 0755 $(PIWEBCAM_PKGDIR)/multi-gadget.sh $(TARGET_DIR)$(PIWEBCAM_DEST_DIR)
 	$(INSTALL) -D -m 0755 $(PIWEBCAM_PKGDIR)/start-webcam.sh $(TARGET_DIR)$(PIWEBCAM_DEST_DIR)
+	$(INSTALL) -D -m 0644 $(PIWEBCAM_PKGDIR)/video_formats.txt $(TARGET_DIR)/etc/video_formats.txt
 endef
 
 define PIWEBCAM_INSTALL_INIT_SYSTEMD

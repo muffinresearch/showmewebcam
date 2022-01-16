@@ -10,6 +10,11 @@ if [ -f "/boot/enable-serial-debug" ] ; then
   CONFIGURE_USB_SERIAL=true
 fi
 
+VIDEO_FORMATS_FILE=/etc/video_formats.txt
+
+# location of video_formats.txt file if overwritten by the user
+VIDEO_FORMATS_USER_FILE=/boot/video_formats.txt
+
 CONFIG=/sys/kernel/config/usb_gadget/piwebcam
 mkdir -p "$CONFIG"
 cd "$CONFIG" || exit 1
@@ -25,17 +30,19 @@ echo 0x01 > bDeviceProtocol
 echo 0x40 > bMaxPacketSize0
 
 mkdir -p strings/0x409
-mkdir -p configs/c.2
-mkdir -p configs/c.2/strings/0x409
-echo 100000000d2386db         > strings/0x409/serialnumber
+mkdir -p configs/c.1
+mkdir -p configs/c.1/strings/0x409
+
+SERIAL=$(cat /sys/firmware/devicetree/base/serial-number)
+echo "$SERIAL"                > strings/0x409/serialnumber
 echo "Show-me Webcam Project" > strings/0x409/manufacturer
 echo "Piwebcam"               > strings/0x409/product
-echo 500                      > configs/c.2/MaxPower
-echo "Piwebcam"               > configs/c.2/strings/0x409/configuration
+echo "Piwebcam"               > configs/c.1/strings/0x409/configuration
+echo 500                      > configs/c.1/MaxPower
 
 config_usb_serial () {
   mkdir -p functions/acm.usb0
-  ln -s functions/acm.usb0 configs/c.2/acm.usb0
+  ln -s functions/acm.usb0 configs/c.1/acm.usb0
 }
 
 config_frame () {
@@ -51,9 +58,9 @@ config_frame () {
   echo "$WIDTH"                    > "$FRAMEDIR"/wWidth
   echo "$HEIGHT"                   > "$FRAMEDIR"/wHeight
   echo 333333                      > "$FRAMEDIR"/dwDefaultFrameInterval
-  echo $((WIDTH * HEIGHT * 80))  > "$FRAMEDIR"/dwMinBitRate
-  echo $((WIDTH * HEIGHT * 160)) > "$FRAMEDIR"/dwMaxBitRate
-  echo $((WIDTH * HEIGHT * 2))   > "$FRAMEDIR"/dwMaxVideoFrameBufferSize
+  echo $((WIDTH * HEIGHT * 80))    > "$FRAMEDIR"/dwMinBitRate
+  echo $((WIDTH * HEIGHT * 160))   > "$FRAMEDIR"/dwMaxBitRate
+  echo $((WIDTH * HEIGHT * 2))     > "$FRAMEDIR"/dwMaxVideoFrameBufferSize
   cat <<EOF > "$FRAMEDIR"/dwFrameInterval
 333333
 400000
@@ -64,33 +71,38 @@ EOF
 config_usb_webcam () {
   mkdir -p functions/uvc.usb0/control/header/h
 
-  # config_frame mjpeg m  640  360
-  # config_frame mjpeg m  640  480
-  # config_frame mjpeg m  800  600
-  # config_frame mjpeg m 1024  768
-  config_frame mjpeg m 1280  720
-  config_frame mjpeg m 1280  960
-  # config_frame mjpeg m 1440 1080
-  # config_frame mjpeg m 1536  864
-  # config_frame mjpeg m 1600  900
-  # config_frame mjpeg m 1640  922
-  # config_frame mjpeg m 1640  1232
-  # config_frame mjpeg m 1600 1200
-  # config_frame mjpeg m 1920 1080
+  if [ -r $VIDEO_FORMATS_USER_FILE ] ; then
+    FORMATS_FILE=$VIDEO_FORMATS_USER_FILE
+  else
+    FORMATS_FILE=$VIDEO_FORMATS_FILE
+  fi
+
+  grep -E "^(mjpeg|uncompressed)[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+" $FORMATS_FILE | while read -r line
+  do
+    VIDEO_FORMAT=$(echo "$line" | awk '{print $1}')
+    HDR_DESC=$(echo "$VIDEO_FORMAT" | cut -c 1)
+    X=$(echo "$line" | awk '{print ($2+0)}')
+    Y=$(echo "$line" | awk '{print ($3+0)}')
+    echo "Enabling video format ${X}x${Y} ($VIDEO_FORMAT)"
+    config_frame "$VIDEO_FORMAT" "$HDR_DESC" "$X" "$Y"
+  done
 
   mkdir -p functions/uvc.usb0/streaming/header/h
-  ln -s functions/uvc.usb0/streaming/mjpeg/m  functions/uvc.usb0/streaming/header/h
-  ln -s functions/uvc.usb0/streaming/header/h functions/uvc.usb0/streaming/class/fs
-  ln -s functions/uvc.usb0/streaming/header/h functions/uvc.usb0/streaming/class/hs
-  ln -s functions/uvc.usb0/control/header/h   functions/uvc.usb0/control/class/fs
+  ln -s functions/uvc.usb0/streaming/mjpeg/m        functions/uvc.usb0/streaming/header/h
+  ln -s functions/uvc.usb0/streaming/uncompressed/u functions/uvc.usb0/streaming/header/h
+  ln -s functions/uvc.usb0/streaming/header/h       functions/uvc.usb0/streaming/class/fs
+  ln -s functions/uvc.usb0/streaming/header/h       functions/uvc.usb0/streaming/class/hs
+  ln -s functions/uvc.usb0/control/header/h         functions/uvc.usb0/control/class/fs
 
-  ln -s functions/uvc.usb0 configs/c.2/uvc.usb0
+  ln -s functions/uvc.usb0 configs/c.1/uvc.usb0
 }
 
 # Check if camera is installed correctly
 if [ ! -e /dev/video0 ] ; then
   echo "I did not detect a camera connected to the Pi. Please check your hardware."
   CONFIGURE_USB_WEBCAM=false
+  # Nobody can read the error if we don't have serial enabled!
+  CONFIGURE_USB_SERIAL=true
 fi
 
 if [ "$CONFIGURE_USB_WEBCAM" = true ] ; then
@@ -103,5 +115,7 @@ if [ "$CONFIGURE_USB_SERIAL" = true ] ; then
   config_usb_serial
 fi
 
-udevadm settle -t 5 || :
 ls /sys/class/udc > UDC
+
+# Ensure any configfs changes are picked up
+udevadm settle -t 5 || :

@@ -20,12 +20,12 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     env:
-      BUILDROOT_VERSION: '2020.11'
+      BUILDROOT_VERSION: '2021.02.4'
       BUILDROOT_DIR: 'buildroot'
 
     strategy:
       matrix:
-        raspberry: ['raspberrypi0', 'raspberrypi0w']
+        raspberry: ['raspberrypi0', 'raspberrypi0w', 'raspberrypi4']
 
     steps:
       - name: Checkout Code
@@ -52,6 +52,11 @@ jobs:
           # Stupid hack to invalidate cache from UI
           # https://github.com/actions/cache/issues/2#issuecomment-673493515
           key: ${{ matrix.raspberry }}-${{ env.BUILDROOT_DIR }}-${{ env.BUILDROOT_VERSION }}-${{ secrets.CACHE_VERSION }}
+
+      # Github Actions are sometimes blocked from this mirror
+      # https://github.com/actions/virtual-environments/issues/2577
+      - name: Blocked mirror workaround
+        run: echo "127.0.0.1 invisible-mirror.net" | sudo tee -a /etc/hosts
 
       - name: Download Buildroot
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -123,9 +128,13 @@ jobs:
         with:
           name: release
 
+      - name: Create checksums file
+        run: |
+          sha256sum "sdcard*" > CHECKSUMS.sha256
+
       - name: Upload Binaries to Release
         uses: alexellis/upload-assets@0.2.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          asset_paths: '["sdcard*"]'
+          asset_paths: '["sdcard*", "CHECKSUMS.sha256"]'

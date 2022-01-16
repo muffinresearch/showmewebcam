@@ -24,22 +24,18 @@ Show-me webcam is proudly powered by [peterbay's uvc-gadget](https://github.com/
 ## What works and what doesn't
 
 - The camera is known to work on Linux, Windows 10 and Mac OS
-- The camera is known to work with Zoom, Teams, Jitsi, Firefox and Chrome
+- The camera is known to work with Zoom, Teams, Skype, Jitsi, Firefox and Chrome
 - Here's a compatibility matrix as far as we could test. Let us know if you had the chance to test other variants:
 
 | Raspberry Pi \ Camera version  | v1 5MP  | v2 8MP  | High Quality 12MP |
 | ------------------------------ | ------- | ------- | ----------------- |
 | Pi Zero v1.3 (without Wifi)    | &check; | &check; | &check;           |
 | Pi Zero W (with Wifi)          | &check; | &check; | &check;           |
-| Pi 4+                          |         |         |                   |
+| Pi 4+                          |         | &check; | &check;           |
 
 ## Instructions
 
-- Watch the [introduction video](https://youtu.be/nH2G16YoBT4)
-- [Assemble the camera with the Raspberry Pi](https://www.youtube.com/watch?v=8fcbP7lEdzY&t=365s)
-- Download the latest release (see below)
-- Use Etcher or `dd` to write the image to the Micro SD card
-- Use the USB data port (the one in the middle of the Raspberry Pi, not the one on the edge) to connect to a computer
+- [Follow the Cytron tutorial](https://tutorial.cytron.io/2020/12/29/raspberry-pi-zero-usb-webcam/).
 - Smile & Enjoy!
 
 ## Stable releases
@@ -153,6 +149,58 @@ You can edit `camera.txt` on-target by remounting `/boot` read-write:
 mount -o remount,rw /boot
 ```
 
+### Overriding the controls available to the host computer
+
+Since version 1.80 we try to expose as many controls as possible via the UVC
+standard, which are then translated back to the controls that are available
+on your specific camera module. Some host operating systems may be confused
+by controls that are advertised via USB, but don't turn out to work, due to
+not being available for your specific camera module.
+
+You can therefore customize the controls advertised to the computer via the
+USB device descriptor. *Warning*: This is an advanced user feature only.
+You should probably consult the [UVC controls bitmap documentation] on GitHub.
+
+You can add the parameters to `cmdline.txt` on the boot volume as follows:
+
+```
+usb_f_uvc.camera_terminal_controls=0,0,0 usb_f_uvc.processing_unit_controls=0,0
+```
+
+The above example disables all controls and should thus be safe.
+The parameters directly correspond to the `bmControls` bitfields in the descriptor.
+Please, again, read the documentation linked above.
+
+An example for enabling all the available controls for the 8 Mpixel (v2) camera for the Raspberry Pi 4B is given below:
+
+```
+usb_f_uvc.camera_terminal_controls=10,0,0 usb_f_uvc.processing_unit_controls=219,4
+```
+
+### Configure available camera resolutions and streaming format
+
+The camera advertises the available resolutions and streaming formats to the
+connected host PC. Usually the best suitable resolution is chosen. The available
+resolutions can be reduced to enforce a specific setting.
+
+By default the camera uses the *Motion JPEG* codec to stream the video signal.
+For the host PC it offers several video resolutions up to 1080p HD video to
+choose from.
+
+These settings can be overwritten by copying the file `video_formats.txt` into
+the `/boot` folder and editing it.
+
+```bash
+cp /etc/video_formats.txt /boot
+```
+
+In this file one line corresponds to one video resolution and streaming format.
+Until now, only mjpeg and uncompressed video are supported. If you want to make
+certain resolutions unavailable, comment them out by prepending a `#` to that
+line or removing them altogether.
+
+Please note that you have to reboot your piwebcam (power cycle it) for changes to take effect.
+
 ## Development & building
 
 Clone or download this repository. Then inside it:
@@ -162,6 +210,7 @@ Clone or download this repository. Then inside it:
 - Run build command:
   - `./build-showmewebcam.sh raspberrypi0w` to build Raspberry Pi Zero W (with Wifi) image.
   - `./build-showmewebcam.sh raspberrypi0` to build Raspberry Pi Zero (without Wifi) image.
+  - `./build-showmewebcam.sh raspberrypi4` to build Raspberry Pi 4 image.
   - **IMPORTANT**: If you didn't rename your Buildroot directory to `buildroot` or if you put it somewhere else you need to set the Buildroot path manually, e.g. `BUILDROOT_DIR=../buildroot ./build-showmewebcam.sh raspberrypi0`
 - The resulting image `sdcard.img` will be in the `output/$BOARDNAME/images` folder
 - If you add a `camera.txt` file to the root of this repository, the contents will be automatically added to `/boot/camera.txt`
@@ -174,3 +223,5 @@ Clone or download this repository. Then inside it:
 - ARM fever: https://armphibian.wordpress.com/2019/10/01/how-to-build-raspberry-pi-zero-w-buildroot-image/
 - The repository icon is attributed to the GNOME project
 
+
+[UVC controls bitmap documentation]: https://github.com/showmewebcam/showmewebcam/wiki/UVC-Controls
